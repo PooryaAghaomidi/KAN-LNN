@@ -18,6 +18,7 @@ from utils.callbacks import callback
 from loss.mean_squared_error import mse_loss
 from loss.categorical_crossentropy import cc_loss
 from optimizer.adamax import adamax_opt
+from optimizer.adam import adam_opt
 from train.train_fin import TrainFIN
 from train.train import TrainModel
 from test.test_fin import test_fin
@@ -59,6 +60,8 @@ def run_FIN(configs):
 
     if configs['optimizer'] == 'adamax':
         my_opt = adamax_opt(configs['learning_rate'], clipvalue=None)
+    elif configs['optimizer'] == 'adam':
+        my_opt = adam_opt(configs['learning_rate'])
     else:
         raise ValueError("The optimizer is invalid")
 

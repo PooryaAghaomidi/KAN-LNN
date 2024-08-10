@@ -2,22 +2,22 @@
 """Model config in json format"""
 
 CFG_preprocessing = {
-    "init_path": "../Dataset/mitbih_train.csv",
+    "init_path": "../Dataset/Sleep/",
     "final_path": "dataset/dataset.csv"
 }
 
 CFG_FIN = {
-    "trained": True,
-    "data_num": 20000,
+    "trained": False,
+    "data_num": 50000,
     "data_length": 3000,
     "units": [512, 256, 128, 64],
     "input_shape": (3000, 1),
-    "drp": 0.1,
+    "drp": 0.0,
     "loss": "mse",
-    "batch_size": 16,
-    "optimizer": "adamax",
-    "learning_rate": 0.001,
-    "patience": 5,
+    "batch_size": 8,
+    "optimizer": "adam",
+    "learning_rate": 0.0001,
+    "patience": 8,
     "monitor": "val_loss",
     "mode": "min",
     "metrics": ["mean_absolute_percentage_error"],
@@ -25,12 +25,12 @@ CFG_FIN = {
 }
 
 CFG_gen = {
-    "data_gen": True,
+    "data_gen": False,
     "data_path": "dataset/dataset.csv",
 }
 
 CFG_stages = {
-    "FIN_model": "checkpoints/fin_20240810_050955",
+    "FIN_model": None,
     "data_path": "dataset/dataset.csv",
     "gen_data_path": "dataset/gen_dataset.csv",
     "use_gen_data": True,

@@ -11,11 +11,11 @@ def callback(train_type, patience=5, mymonitor='val_loss', mymode='min'):
 
     main_chk = ModelCheckpoint(filepath=f'checkpoints/{train_type}_{timestamp}', monitor=mymonitor, mode=mymode,
                                verbose=1, save_best_only=True)
-    # early_st = EarlyStopping(monitor=mymonitor, mode=mymode, patience=patience, verbose=1)
-    rduce_lr = ReduceLROnPlateau(monitor=mymonitor, mode=mymode, factor=0.5, patience=patience, verbose=1,
+    early_st = EarlyStopping(monitor=mymonitor, mode=mymode, patience=patience, verbose=1)
+    rduce_lr = ReduceLROnPlateau(monitor=mymonitor, mode=mymode, factor=0.5, patience=patience-5, verbose=1,
                                  min_lr=0.000001)
     tsboard = TensorBoard(log_dir=f'checkpoints/{train_type}_{timestamp}')
 
     tr_plot = PlotLossesCallback()
 
-    return [main_chk, rduce_lr, tr_plot, tsboard], f'checkpoints/{train_type}_{timestamp}'
+    return [main_chk, early_st, rduce_lr, tr_plot, tsboard], f'checkpoints/{train_type}_{timestamp}'
