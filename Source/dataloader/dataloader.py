@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Data Loader"""
 
+import math
 import numpy as np
 import tensorflow as tf
 from ssqueezepy import ssq_stft
@@ -8,21 +9,32 @@ from tensorflow.keras.utils import to_categorical
 
 
 class DataGenerator(tf.keras.utils.Sequence):
-    def __init__(self, data, shape, batch_size, cls_num, shuffle=False):
+    def __init__(self, data, image_shape, signal_shape, batch_size, cls_num, width, overlap, shuffle=False):
         self.data = data
-        self.shape = shape
+        self.image_shape = image_shape
+        self.signal_shape = signal_shape
         self.batch_size = batch_size
         self.cls_num = cls_num
         self.shuffle = shuffle
+        self.width = width
+
+        self.diff = self.width - overlap
+        self.n = math.floor((int(signal_shape[0]) - overlap) / self.diff)
 
         self.on_epoch_end()
+
+    def windowing(self, signal):
+        x = []
+        for j in range(self.n):
+            x.append(signal[self.diff * j: self.width + self.diff * j])
+        return x
 
     def __len__(self):
         return int(np.floor(len(self.data) / self.batch_size))
 
     def __getitem__(self, index):
         indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
-        list_IDs_temp = [self.data[k] for k in indexes]
+        list_IDs_temp = [np.array(self.data.iloc[k]) for k in indexes]
         x, y = self.__data_generation(list_IDs_temp)
         return x, y
 
@@ -32,16 +44,20 @@ class DataGenerator(tf.keras.utils.Sequence):
             np.random.shuffle(self.indexes)
 
     def __data_generation(self, list_IDs_temp):
-        x = np.empty((self.batch_size, int(self.shape[0]), int(self.shape[1]), int(self.shape[2])))
+        x = np.empty((self.batch_size, self.n, int(self.image_shape[1]), int(self.image_shape[2]), int(self.image_shape[3])))
+        s = np.empty((self.batch_size, int(self.signal_shape[0]), int(self.signal_shape[1])))
         y = np.empty((self.batch_size), dtype=int)
 
         for idx, ID in enumerate(list_IDs_temp):
-            Twxo, TF, *_ = ssq_stft(ID[:128], n_fft=256)
-            x[idx, :, :, 0] = TF.real[0:int(self.shape[1]), :]
-            x[idx, :, :, 1] = TF.imag[0:int(self.shape[1]), :]
-            v = x[idx, :, :, :]
-            x[idx, :, :, :] = (v - v.min()) / (v.max() - v.min())
+            my_signal = ID[:3000]
+            segments = self.windowing(my_signal)
 
-            y[idx] = ID[128]
+            for idxx, segment in enumerate(segments):
+                Twxo, TF, *_ = ssq_stft(segment)
+                v = np.abs(TF)[:int(self.image_shape[1]), :]
+                x[idx, idxx, :, :, 0] = (v - v.min()) / (v.max() - v.min())
 
-        return x, to_categorical(y, num_classes=self.cls_num)
+            s[idx, :, 0] = (my_signal - my_signal.min()) / (my_signal.max() - my_signal.min())
+            y[idx] = int(ID[3000])
+
+        return [x, s], to_categorical(y, num_classes=self.cls_num)

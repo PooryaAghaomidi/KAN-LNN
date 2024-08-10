@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Unet model"""
 
+from tensorflow.keras.models import load_model, Model
 from .ncps.tf import LTC, LTCCell
 from .ncps.wirings import AutoNCP
 from .tfkan.layers.dense import DenseKAN
@@ -9,33 +10,62 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 
 
-def build(input_shape, num_classes):
-    inpt = layers.Input(shape=input_shape)
+def build(image_shape, signal_shape, num_classes, lnn_units, fin_path, kan_units):
+    """############################### Image ####################################"""
 
-    x = Conv2DKAN(8, kernel_size=(3, 3), padding="same")(inpt)
-    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
-    x = Conv2DKAN(16, kernel_size=(3, 3), padding="same")(x)
-    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
-    x = Conv2DKAN(32, kernel_size=(3, 3), padding="same")(x)
-    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
-    x = Conv2DKAN(64, kernel_size=(3, 3), padding="same")(x)
-    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
-    x = Conv2DKAN(128, kernel_size=(3, 3), padding="same")(x)
-    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
+    input_img = layers.Input(shape=image_shape)
 
-    r = layers.Permute((3, 1, 2))(x)
-    r = layers.Reshape((128, 16))(r)
+    res = layers.TimeDistributed(layers.Resizing(int(image_shape[1]/4), int(image_shape[2]/4)))(input_img)
+    x = layers.TimeDistributed(layers.Conv2D(8, kernel_size=(3, 3), padding="same"))(res)
+    x = layers.TimeDistributed(layers.MaxPooling2D(pool_size=(2, 2)))(x)
+    x = layers.TimeDistributed(layers.BatchNormalization())(x)
+    x = layers.TimeDistributed(layers.Conv2D(16, kernel_size=(3, 3), padding="same"))(x)
+    x = layers.TimeDistributed(layers.MaxPooling2D(pool_size=(2, 2)))(x)
+    x = layers.TimeDistributed(layers.BatchNormalization())(x)
+    x = layers.TimeDistributed(layers.Conv2D(32, kernel_size=(3, 3), padding="same"))(x)
+    x = layers.TimeDistributed(layers.MaxPooling2D(pool_size=(2, 2)))(x)
+    x = layers.TimeDistributed(layers.BatchNormalization())(x)
+    x = layers.TimeDistributed(layers.Conv2D(64, kernel_size=(3, 3), padding="same"))(x)
+    x = layers.TimeDistributed(layers.MaxPooling2D(pool_size=(2, 2)))(x)
+    x = layers.TimeDistributed(layers.BatchNormalization())(x)
+    x = layers.TimeDistributed(layers.Conv2D(128, kernel_size=(3, 3), padding="same"))(x)
+    x = layers.TimeDistributed(layers.MaxPooling2D(pool_size=(2, 2)))(x)
+    x = layers.TimeDistributed(layers.BatchNormalization())(x)
 
-    wiring = AutoNCP(128, 64)
+    x = layers.TimeDistributed(layers.GlobalAveragePooling2D())(x)
+    x = layers.Flatten()(x)
+    img_output = layers.Dense(lnn_units[1], activation="relu")(x)
+
+    """################################# LNN #####################################"""
+
+    input_sig = layers.Input(shape=signal_shape)
+
+    wiring = AutoNCP(lnn_units[0], lnn_units[1])
     rnn_cell = LTCCell(wiring)
 
-    lnn = layers.RNN(rnn_cell, return_sequences=True)(r)
-    gavg = layers.GlobalAveragePooling1D()(lnn)
+    lnn = layers.RNN(rnn_cell, return_sequences=True)(input_sig)
+    lnn_output = layers.GlobalAveragePooling1D()(lnn)
 
-    fc = DenseKAN(32)(gavg)
-    utpt = DenseKAN(num_classes)(fc)
+    """################################# FIN #####################################"""
 
-    model = Model(inputs=inpt, outputs=utpt)
+    fin_model_raw = load_model(fin_path)
+    fin_inp = fin_model_raw.input
+    fin_out = fin_model_raw.layers[-2].output
+    fin_model = Model(fin_inp, fin_out)
+
+    x = fin_model(input_sig)
+    x = layers.GlobalAveragePooling1D()(x)
+    fin_output = layers.Dense(lnn_units[1], activation="relu")(x)
+
+    """############################### Concat ####################################"""
+
+    contacted = layers.Concatenate()([img_output, lnn_output, fin_output])
+
+    fc = DenseKAN(kan_units[0])(contacted)
+    fc = DenseKAN(num_classes)(fc)
+    output = layers.Softmax()(fc)
+
+    model = Model(inputs=[input_img, input_sig], outputs=output)
 
     print(model.summary())
 

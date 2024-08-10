@@ -27,6 +27,7 @@ class TrainModel:
         self.validation_steps = validation_steps
 
     def train(self):
+        print('\nStart training ...\n')
         history = self.model.fit(self.train_dataset,
                                  validation_data=self.validation_dataset,
                                  batch_size=self.batch_size,
