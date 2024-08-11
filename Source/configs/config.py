@@ -7,17 +7,15 @@ CFG_preprocessing = {
 }
 
 CFG_FIN = {
-    "trained": False,
-    "data_num": 50000,
-    "data_length": 3000,
-    "units": [512, 256, 128, 64],
+    "trained": True,
+    "data_path": "dataset/dataset.csv",
+    "units": [512, 256, 128],
     "input_shape": (3000, 1),
-    "drp": 0.0,
     "loss": "mse",
-    "batch_size": 8,
+    "batch_size": 128,
     "optimizer": "adam",
-    "learning_rate": 0.0001,
-    "patience": 8,
+    "learning_rate": 0.001,
+    "patience": 20,
     "monitor": "val_loss",
     "mode": "min",
     "metrics": ["mean_absolute_percentage_error"],
@@ -27,10 +25,17 @@ CFG_FIN = {
 CFG_gen = {
     "data_gen": False,
     "data_path": "dataset/dataset.csv",
+    "cls_num": 5,
+    "signal_shape": (3000, 1),
+    "z_space": 64,
+    "dense_units": [128],
+    "patience": 5,
+    "monitor": "val_loss",
+    "mode": "min",
 }
 
 CFG_stages = {
-    "FIN_model": None,
+    "FIN_model": "checkpoints/fin_20240811_044828",
     "data_path": "dataset/dataset.csv",
     "gen_data_path": "dataset/gen_dataset.csv",
     "use_gen_data": True,

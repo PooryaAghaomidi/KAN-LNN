@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Unet model"""
 
-from tensorflow.keras.models import load_model, Model
 from tensorflow.keras import backend as K
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
@@ -33,7 +32,7 @@ def residual_block(x, filters, kernel_size=3, activation='relu', dropout_rate=0.
     return x
 
 
-def build_cvae(label_shape, signal_shape, num_classes, z_space, dense_units):
+def build_cvae(label_shape, signal_shape, num_classes, z_space, dense_units, vae_loss_layer):
     """############################### ENCODER ####################################"""
 
     input_sig = layers.Input(shape=signal_shape)
@@ -61,8 +60,8 @@ def build_cvae(label_shape, signal_shape, num_classes, z_space, dense_units):
     """############################# LATENT SPACE #################################"""
 
     mu = layers.Dense(z_space, activation='linear')(x)
-    sg = layers.Dense(z_space, activation='linear')(x)
-    z = layers.Lambda(sample_z, output_shape=(z_space,))([mu, sg])
+    l_sigma = layers.Dense(z_space, activation='linear')(x)
+    z = layers.Lambda(sample_z, output_shape=(z_space,))([mu, l_sigma])
     zc = layers.concatenate([z, input_lbl])
 
     """############################### DECODER ####################################"""
@@ -87,9 +86,15 @@ def build_cvae(label_shape, signal_shape, num_classes, z_space, dense_units):
 
     """################################ RETURN ####################################"""
 
-    model = Model([input_sig, input_lbl], outputs)
+    # Add the custom VAE loss layer
+    vae_loss = vae_loss_layer([input_sig, outputs, mu, l_sigma])
+    cvae = Model([input_sig, input_lbl], outputs)
+    cvae.add_loss(vae_loss)
+
+    # Define the encoder model
     encoder = Model([input_sig, input_lbl], mu)
 
+    # Define the decoder model
     d_in = layers.Input(shape=(z_space + num_classes,))
     dh = layers.Dense(dense_units[0], activation='relu')(d_in)
     dh = layers.Reshape((dense_units[0], 1))(dh)
@@ -110,4 +115,4 @@ def build_cvae(label_shape, signal_shape, num_classes, z_space, dense_units):
 
     decoder = Model(d_in, do)
 
-    return model, encoder, decoder
+    return cvae, encoder, decoder

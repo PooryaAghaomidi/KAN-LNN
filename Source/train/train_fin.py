@@ -11,10 +11,8 @@ class TrainFIN:
                  metrics,
                  epoches,
                  batch_size,
-                 X_train,
-                 y_train,
-                 X_test,
-                 y_test,
+                 train_data,
+                 val_data,
                  steps_per_epoch,
                  validation_steps):
         self.model = model
@@ -23,18 +21,15 @@ class TrainFIN:
         self.epoches = epoches
         self.batch_size = batch_size
         self.callbacks = callbacks
-        self.X_train = X_train
-        self.y_train = y_train
-        self.X_test = X_test
-        self.y_test = y_test
+        self.train_data = train_data
+        self.val_data = val_data
         self.steps_per_epoch = steps_per_epoch
         self.validation_steps = validation_steps
 
     def train(self):
         print('\nStart training ...\n')
-        history = self.model.fit(self.X_train,
-                                 self.y_train,
-                                 validation_data=(self.X_test, self.y_test),
+        history = self.model.fit(self.train_data,
+                                 validation_data=self.val_data,
                                  batch_size=self.batch_size,
                                  epochs=self.epoches,
                                  verbose=1,
