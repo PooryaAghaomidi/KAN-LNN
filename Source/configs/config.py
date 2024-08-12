@@ -23,15 +23,7 @@ CFG_FIN = {
 }
 
 CFG_gen = {
-    "data_gen": False,
-    "data_path": "dataset/dataset.csv",
-    "cls_num": 5,
-    "signal_shape": (3000, 1),
-    "z_space": 64,
-    "dense_units": [128],
-    "patience": 5,
-    "monitor": "val_loss",
-    "mode": "min",
+
 }
 
 CFG_stages = {

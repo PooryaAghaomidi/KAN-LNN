@@ -11,11 +11,9 @@ from utils.set_device import set_gpu
 from dataset.preprocessing import preprocess
 from model.fin import build_fin
 from model.model import build
-from model.cvae import build_cvae
 from utils.callbacks import callback
 from loss.huber import huber_loss
 from loss.mean_squared_error import mse_loss
-from loss.vae_loss_function import VAELoss
 from loss.categorical_crossentropy import cc_loss
 from optimizer.adamax import adamax_opt
 from optimizer.adam import adam_opt
@@ -79,22 +77,7 @@ def run_FIN(configs):
 
 
 def run_gen(configs):
-    data = pd.read_csv(configs['data_path'])
-    data = data.sample(frac=1).reset_index(drop=True)
-    data = data.drop(['Unnamed: 0'], axis=1)
-
-    ln = len(data)
-    train = data.iloc[:int(ln * 0.8), :]
-    test = data.iloc[int(ln * 0.8):int(ln * 0.9), :]
-    val = data.iloc[int(ln * 0.9):, :]
-
-    steps_per_epoch = len(train) // configs['batch_size']
-    steps_per_test = len(test) // configs['batch_size']
-    steps_per_val = len(val) // configs['batch_size']
-
-    cvae, encoder, decoder = build_cvae((configs['cls_num'], 1), configs['signal_shape'], configs['cls_num'],
-                                        configs["z_space"], configs["dense_units"], VAELoss(configs['signal_shape'][0]))
-    callbacks, model_name = callback('gen', configs["patience"], configs['monitor'], configs['mode'])
+    print('In progress ...')
 
 
 def run_stages(configs):
