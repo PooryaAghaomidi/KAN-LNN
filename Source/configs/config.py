@@ -3,7 +3,7 @@
 
 CFG_preprocessing = {
     "init_path": "../Dataset/Sleep/",
-    "final_path": "dataset/dataset.csv"
+    "final_path": "dataset/dataset.csv",
 }
 
 CFG_FIN = {
@@ -23,7 +23,21 @@ CFG_FIN = {
 }
 
 CFG_gen = {
+    "train": {
+        "data_path": "dataset/dataset.csv",
+        "signal_length": 3000,
+        "label_length": 5,
+        "latent_space": 2,
+        "batch_size": 4,
+        "num_epochs": 50,
+        "learning_rate": 0.00001,
+        "info_interval": 1,
+    },
 
+    "generate": {
+        "trained": False,
+        "generated": False,
+    }
 }
 
 CFG_stages = {
