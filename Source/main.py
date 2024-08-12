@@ -5,7 +5,9 @@ import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+import torch
 import pandas as pd
+from utils.visualize_cvae import display_generated_samples
 from utils.torch_callback import t_callback
 from train.train_cvae import TrainCVAE
 from model.cvae import CVAE
@@ -92,18 +94,14 @@ def run_train_gen(configs):
     dataset = dataset.sample(frac=1).reset_index(drop=True)
 
     ln = len(dataset)
-    train_data = dataset.iloc[:int(ln * 0.8), :]
-    test_data = dataset.iloc[int(ln * 0.8):int(ln * 0.9), :]
+    train_data = dataset.iloc[:int(ln * 0.9), :]
     val_data = dataset.iloc[int(ln * 0.9):, :]
 
     steps_per_epoch = len(train_data) // configs['batch_size']
-    steps_per_test = len(test_data) // configs['batch_size']
     steps_per_val = len(val_data) // configs['batch_size']
 
     train_gen = CVAEDataGenerator(train_data, configs['signal_length'], configs['label_length'], configs['batch_size'],
                                   device)
-    test_gen = CVAEDataGenerator(test_data, configs['signal_length'], configs['label_length'], configs['batch_size'],
-                                 device)
     val_gen = CVAEDataGenerator(val_data, configs['signal_length'], configs['label_length'], configs['batch_size'],
                                 device)
 
@@ -117,6 +115,9 @@ def run_train_gen(configs):
                             steps_per_epoch, steps_per_val, sum_writer, model_name,
                             steps_per_epoch // configs['info_interval'])
     train_class.training()
+
+    model.load_state_dict(torch.load(model_name))
+    display_generated_samples(model, class_labels=[0, 1, 2, 3, 4], latent_size=configs['latent_space'], num_samples=configs['label_length'], device=device)
 
 
 def run_gen(configs):

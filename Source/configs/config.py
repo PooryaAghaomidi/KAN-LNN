@@ -27,10 +27,10 @@ CFG_gen = {
         "data_path": "dataset/dataset.csv",
         "signal_length": 3000,
         "label_length": 5,
-        "latent_space": 2,
-        "batch_size": 4,
-        "num_epochs": 50,
-        "learning_rate": 0.00001,
+        "latent_space": 32,
+        "batch_size": 32,
+        "num_epochs": 200,
+        "learning_rate": 0.001,
         "info_interval": 1,
     },
 
@@ -41,7 +41,7 @@ CFG_gen = {
 }
 
 CFG_stages = {
-    "FIN_model": "checkpoints/fin_20240811_044828",
+    "FIN_model": None, #"checkpoints/fin_20240811_044828",
     "data_path": "dataset/dataset.csv",
     "gen_data_path": "dataset/gen_dataset.csv",
     "use_gen_data": True,

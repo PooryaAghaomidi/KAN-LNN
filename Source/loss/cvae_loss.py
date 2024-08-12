@@ -8,6 +8,6 @@ class CVAELoss:
         self.weight_2 = 1
 
     def cvae_loss_function(self, recon_x, x, mu, logvar):
-        BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
+        BCE = F.mse_loss(recon_x, x, reduction='sum')
         KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         return self.weight_1 * BCE + self.weight_2 * KLD
