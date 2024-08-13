@@ -25,13 +25,14 @@ CFG_FIN = {
 CFG_gen = {
     "train": {
         "data_path": "dataset/dataset.csv",
-        "signal_length": 3000,
+        "signal_length": 128,
         "label_length": 5,
-        "latent_space": 32,
+        "latent_space": 16,
         "batch_size": 32,
-        "num_epochs": 200,
-        "learning_rate": 0.001,
+        "num_epochs": 500,
+        "learning_rate": 0.01,
         "info_interval": 1,
+        "optimizer": "adamax"
     },
 
     "generate": {

@@ -1,5 +1,6 @@
 import torch
 from tqdm import tqdm
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 
 
 class TrainCVAE:
@@ -28,6 +29,8 @@ class TrainCVAE:
         self.writer = writer
         self.model_name = model_name
         self.info_interval = info_interval
+
+        self.scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.5, verbose=True)
 
     def train_one_epoch(self, epoch_index, tb_writer):
         running_loss = 0.
@@ -99,5 +102,8 @@ class TrainCVAE:
             if avg_vloss < best_vloss:
                 best_vloss = avg_vloss
                 torch.save(self.model.state_dict(), self.model_name)
+
+            if self.scheduler:
+                self.scheduler.step(avg_vloss)
 
             epoch_number += 1

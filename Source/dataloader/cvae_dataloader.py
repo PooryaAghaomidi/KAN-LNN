@@ -20,7 +20,7 @@ class CVAEDataGenerator:
         x = np.empty((self.batch_size, int(self.sig_shape)))
 
         for i, signal in enumerate(x_init.iloc):
-            signal = np.array(signal)
+            signal = np.array(signal)[:128]
             x[i, :] = (signal - signal.min())/(signal.max() - signal.min())
 
         y_init = np.array(y_init)

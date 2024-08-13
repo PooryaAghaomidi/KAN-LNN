@@ -11,7 +11,7 @@ from utils.visualize_cvae import display_generated_samples
 from utils.torch_callback import t_callback
 from train.train_cvae import TrainCVAE
 from model.cvae import CVAE
-from optimizer.torch_opt import torch_adam
+from optimizer.torch_opt import torch_adam, torch_adamax, torch_sgd
 from loss.cvae_loss import CVAELoss
 from utils.set_torch import set_torch_device, set_torch_seed
 from dataloader.cvae_dataloader import CVAEDataGenerator
@@ -108,7 +108,15 @@ def run_train_gen(configs):
     model = CVAE(configs['signal_length'], configs['latent_space'], configs['label_length']).to(device)
 
     my_loss = CVAELoss()
-    my_opt = torch_adam(model, configs['learning_rate'])
+
+    if configs['optimizer'] == 'adam':
+        my_opt = torch_adam(model, configs['learning_rate'])
+    elif configs['optimizer'] == 'adamax':
+        my_opt = torch_adamax(model, configs['learning_rate'])
+    elif configs['optimizer'] == 'sgd':
+        my_opt = torch_sgd(model, configs['learning_rate'])
+    else:
+        raise ValueError("Invalid optimizer!")
 
     sum_writer, model_name = t_callback()
     train_class = TrainCVAE(model, train_gen, val_gen, my_opt, my_loss, configs['num_epochs'], configs['batch_size'],
