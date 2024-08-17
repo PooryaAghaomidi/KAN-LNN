@@ -7,6 +7,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import torch
 import pandas as pd
+import matplotlib.pyplot as plt
 from utils.visualize_cvae import display_generated_samples
 from utils.torch_callback import t_callback
 from train.train_cvae import TrainCVAE
@@ -107,7 +108,8 @@ def run_train_gen(configs):
 
     model = CVAE(configs['signal_length'], configs['latent_space'], configs['label_length']).to(device)
 
-    my_loss = CVAELoss()
+    my_loss = CVAELoss(weight_1=configs['weight_MSE'], weight_2=configs['weight_KLD'], weight_3=configs['weight_CE'],
+                       start_epoch=200, end_epoch=300)
 
     if configs['optimizer'] == 'adam':
         my_opt = torch_adam(model, configs['learning_rate'])
@@ -125,7 +127,8 @@ def run_train_gen(configs):
     train_class.training()
 
     model.load_state_dict(torch.load(model_name))
-    display_generated_samples(model, class_labels=[0, 1, 2, 3, 4], latent_size=configs['latent_space'], num_samples=configs['label_length'], device=device)
+    display_generated_samples(model, class_labels=[0, 1, 2, 3, 4], latent_size=configs['latent_space'],
+                              num_samples=configs['label_length'], device=device)
 
 
 def run_gen(configs):

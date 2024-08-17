@@ -1,5 +1,7 @@
 import torch
+import numpy as np
 import matplotlib.pyplot as plt
+from ssqueezepy import issq_stft
 
 
 def display_generated_samples(model, class_labels, latent_size, num_samples=5, device='cuda'):
@@ -8,19 +10,28 @@ def display_generated_samples(model, class_labels, latent_size, num_samples=5, d
     with torch.no_grad():
         fig, axes = plt.subplots(num_samples, 1, figsize=(12, num_samples * 3))
 
+        if num_samples == 1:
+            axes = [axes]
+
         for i in range(num_samples):
             z = torch.randn(1, latent_size).to(device)
 
-            c_one_hot = torch.zeros(1, model.class_size).to(device)
+            c_one_hot = torch.zeros(1, model.condition_dim).to(device)
             c_one_hot[0, class_labels[i]] = 1.0
 
-            generated_signal = model.decode(z, c_one_hot).cpu().numpy().flatten()
+            generated_signal = model.decode(z, c_one_hot).cpu().numpy()
+
+            real_part = generated_signal[0, :, :, 0]
+            imag_part = generated_signal[0, :, :, 1]
+            TF = real_part + imag_part*1j
+            signal = issq_stft(TF)
 
             ax = axes[i]
-            ax.plot(generated_signal[200:400])
+            ax.plot(signal.flatten())
             ax.set_title(f"Generated Signal - Class {class_labels[i]}")
             ax.set_xlabel('Time')
             ax.set_ylabel('Amplitude')
+            ax.grid(True)
 
         plt.tight_layout()
         plt.show()

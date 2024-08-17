@@ -42,8 +42,8 @@ class TrainCVAE:
 
             self.opt.zero_grad()
 
-            recon_batch, mu, logvar = self.model(x, y_true)
-            loss = self.loss.cvae_loss_function(recon_batch, x, mu, logvar)
+            recon_batch, mu, logvar, y_pred = self.model(x, y_true)
+            loss = self.loss.cvae_loss_function(recon_batch, x, mu, logvar, y_pred, y_true)
             loss.backward()
 
             self.opt.step()
@@ -83,8 +83,8 @@ class TrainCVAE:
                 for i in range(self.steps_per_val):
                     xv, yv_true = self.val_gen.data_generation(i)
 
-                    recon_batch, mu, logvar = self.model(xv, yv_true)
-                    vloss = self.loss.cvae_loss_function(recon_batch, xv, mu, logvar)
+                    recon_batch, mu, logvar, yv_pred = self.model(xv, yv_true)
+                    vloss = self.loss.cvae_loss_function(recon_batch, xv, mu, logvar, yv_pred, yv_true)
 
                     running_vloss += vloss
 
@@ -102,6 +102,7 @@ class TrainCVAE:
             if avg_vloss < best_vloss:
                 best_vloss = avg_vloss
                 torch.save(self.model.state_dict(), self.model_name)
+                print(f'The model has been saved as {self.model_name}')
 
             if self.scheduler:
                 self.scheduler.step(avg_vloss)
