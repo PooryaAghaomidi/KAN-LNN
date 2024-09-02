@@ -10,3 +10,5 @@ scipy
 ssqueezepy
 wfdb
 IPython
+imbalanced-learn
+tensorflow-addons==0.17.0

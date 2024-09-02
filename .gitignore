@@ -2,6 +2,9 @@
 .idea/
 Sleep/
 dataset.csv
+adasyn_dataset.csv
+resampled_dataset.csv
+smote_dataset.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

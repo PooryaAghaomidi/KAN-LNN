@@ -5,9 +5,10 @@ import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+import gc
 import torch
 import pandas as pd
-import matplotlib.pyplot as plt
+from dataset.oversampling import smote_oversampling, adasyn_oversampling, cvae_oversampling
 from utils.visualize_cvae import display_generated_samples
 from utils.torch_callback import t_callback
 from train.train_cvae import TrainCVAE
@@ -86,7 +87,7 @@ def run_FIN(configs):
     test_fin(model_name, test_data)
 
 
-def run_train_gen(configs):
+def run_train_cvae(configs):
     device = set_torch_device()
     generator = set_torch_seed(device=device)
 
@@ -108,8 +109,7 @@ def run_train_gen(configs):
 
     model = CVAE(configs['signal_length'], configs['latent_space'], configs['label_length']).to(device)
 
-    my_loss = CVAELoss(weight_1=configs['weight_MSE'], weight_2=configs['weight_KLD'], weight_3=configs['weight_CE'],
-                       start_epoch=200, end_epoch=300)
+    my_loss = CVAELoss()
 
     if configs['optimizer'] == 'adam':
         my_opt = torch_adam(model, configs['learning_rate'])
@@ -132,33 +132,51 @@ def run_train_gen(configs):
 
 
 def run_gen(configs):
-    print('In progress ...')
+    if not configs['SMOTE']:
+        smote_oversampling(configs['data_path'], configs['SMOTE_saved'])
+    if not configs['ADASYN']:
+        adasyn_oversampling(configs['data_path'], configs['ADASYN_saved'])
+    if not configs['CVAE']:
+        device = set_torch_device()
+        model = CVAE(CFG_gen["CVAE"]['signal_length'], CFG_gen["CVAE"]['latent_space'], CFG_gen["CVAE"]['label_length']).to(device)
+        model.load_state_dict(torch.load(configs['model_path']))
+        cvae_oversampling(configs['data_path'], model, device, CFG_gen["CVAE"]['latent_space'], configs['CVAE_saved'])
+    else:
+        pass
 
 
 def run_stages(configs):
-    if configs['use_gen_data']:
-        data = pd.read_csv(configs['gen_data_path'])
-    else:
+    gc.collect()
+
+    if configs['data_type'] == 'normal':
         data = pd.read_csv(configs['data_path'])
+        data = data.drop(['Unnamed: 0'], axis=1)
+    elif configs['data_type'] == 'smote':
+        data = pd.read_csv(configs['smote_data_path'])
+    elif configs['data_type'] == 'adasyn':
+        data = pd.read_csv(configs['adasyn_data_path'])
+    else:
+        raise ValueError("Invalid data type!")
 
     data = data.sample(frac=1).reset_index(drop=True)
-    data = data.drop(['Unnamed: 0'], axis=1)
 
     ln = len(data)
     train = data.iloc[:int(ln * 0.8), :]
     test = data.iloc[int(ln * 0.8):int(ln * 0.9), :]
     val = data.iloc[int(ln * 0.9):, :]
 
+    del data
+
     steps_per_epoch = len(train) // configs['batch_size']
     steps_per_test = len(test) // configs['batch_size']
     steps_per_val = len(val) // configs['batch_size']
 
     train_gen = DataGenerator(train, configs['image_shape'], configs['signal_shape'], configs['batch_size'],
-                              configs['cls_num'], configs['width'], configs['overlap'])
+                              configs['cls_num'], configs['overlap'])
     test_gen = DataGenerator(test, configs['image_shape'], configs['signal_shape'], configs['batch_size'],
-                             configs['cls_num'], configs['width'], configs['overlap'])
+                             configs['cls_num'], configs['overlap'])
     val_gen = DataGenerator(val, configs['image_shape'], configs['signal_shape'], configs['batch_size'],
-                            configs['cls_num'], configs['width'], configs['overlap'])
+                            configs['cls_num'], configs['overlap'])
 
     model = build(configs['image_shape'], configs['signal_shape'], configs['cls_num'], configs['lnn_units'],
                   configs['FIN_model'], configs['kan_units'])
@@ -171,6 +189,10 @@ def run_stages(configs):
 
     if configs['optimizer'] == 'adamax':
         my_opt = adamax_opt(configs['learning_rate'], clipvalue=None)
+    elif configs['optimizer'] == 'adam':
+        my_opt = adam_opt(configs['learning_rate'])
+    elif configs['optimizer'] == 'sgd':
+        my_opt = sgd_opt(configs['learning_rate'])
     else:
         raise ValueError("The optimizer is invalid")
 
@@ -203,15 +225,21 @@ if __name__ == '__main__':
 
     print("TRAIN FIN: Done")
 
-    print('\n==================================== DATA GENERATION =======================================\n')
-    if not CFG_gen["generate"]["trained"]:
-        run_train_gen(CFG_gen["train"])
-    elif CFG_gen["generate"]["trained"] and not CFG_gen["generate"]["generated"]:
-        run_gen((CFG_gen["generate"]))
+    print('\n=================================== TRAIN GENERATION =======================================\n')
+    if not CFG_gen["CVAE"]["trained"]:
+        run_train_cvae(CFG_gen["CVAE"])
     else:
         pass
 
-    print("DATA GENERATION: Done")
+    print("TRAIN GENERATION: Done")
+
+    print('\n==================================== GENERATE DATA =========================================\n')
+    if not CFG_gen["generate"]["all_generated"]:
+        run_gen(CFG_gen["generate"])
+    else:
+        pass
+
+    print("GENERATE DATA: Done")
 
     print('\n===================================== TRAIN STAGES =========================================\n')
     if CFG_stages["FIN_model"] is not None:

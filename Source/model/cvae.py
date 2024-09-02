@@ -195,16 +195,6 @@ class CVAE(nn.Module):
             nn.Conv2d(32, 2, kernel_size=3, padding=1)  # Final layer to produce 2 channels
         )
 
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(128 * 256 * 2, 512),
-            nn.ReLU(),
-            nn.Linear(512, 128),
-            nn.ReLU(),
-            nn.Linear(128, condition_dim),
-            nn.Softmax(dim=1)
-        )
-
     def encode(self, x, c):
         c_expanded = c.unsqueeze(1).unsqueeze(1)
         c_expanded = c_expanded.expand(-1, x.size(1), x.size(2), -1)
@@ -254,6 +244,4 @@ class CVAE(nn.Module):
         # Decode the latent vector to reconstruct the input
         reconstruction = self.decode(z, c)
 
-        class_logits = self.classifier(reconstruction)
-
-        return reconstruction, mean, log_variance, class_logits
+        return reconstruction, mean, log_variance

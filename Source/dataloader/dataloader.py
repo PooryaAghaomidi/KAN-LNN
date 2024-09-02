@@ -9,14 +9,14 @@ from tensorflow.keras.utils import to_categorical
 
 
 class DataGenerator(tf.keras.utils.Sequence):
-    def __init__(self, data, image_shape, signal_shape, batch_size, cls_num, width, overlap, shuffle=False):
+    def __init__(self, data, image_shape, signal_shape, batch_size, cls_num, overlap, shuffle=False):
         self.data = data
         self.image_shape = image_shape
         self.signal_shape = signal_shape
         self.batch_size = batch_size
         self.cls_num = cls_num
         self.shuffle = shuffle
-        self.width = width
+        self.width = image_shape[2]
 
         self.diff = self.width - overlap
         self.n = math.floor((int(signal_shape[0]) - overlap) / self.diff)
@@ -54,8 +54,8 @@ class DataGenerator(tf.keras.utils.Sequence):
 
             for idxx, segment in enumerate(segments):
                 Twxo, TF, *_ = ssq_stft(segment)
-                v = np.abs(TF)[:int(self.image_shape[1]), :]
-                x[idx, idxx, :, :, 0] = (v - v.min()) / (v.max() - v.min())
+                TF_abs = np.abs(TF)[:int(self.image_shape[1]), :int(self.image_shape[2])]
+                x[idx, idxx, :, :, 0] = (TF_abs - TF_abs.min()) / (TF_abs.max() - TF_abs.min())
 
             s[idx, :, 0] = (my_signal - my_signal.min()) / (my_signal.max() - my_signal.min())
             y[idx] = int(ID[3000])

@@ -1,13 +1,51 @@
 # -*- coding: utf-8 -*-
 """Unet model"""
 
-from tensorflow.keras.models import load_model, Model
-from .ncps.tf import LTC, LTCCell
+import tensorflow as tf
+from .ncps.tf import LTCCell
 from .ncps.wirings import AutoNCP
-from .tfkan.layers.dense import DenseKAN
-from .tfkan.layers.convolution import Conv2DKAN
 from tensorflow.keras import layers
-from tensorflow.keras.models import Model
+from .tfkan.layers.dense import DenseKAN
+from tensorflow.keras.models import load_model, Model
+
+
+def residual_block(x, filters, kernel_size=3, stride=1):
+    shortcut = x
+    x = layers.Conv2D(filters, kernel_size, stride, padding='same')(x)
+    x = layers.BatchNormalization()(x)  # Can be replaced with other normalization layers if desired
+    x = layers.Activation('swish')(x)  # SiLU activation
+
+    x = layers.Conv2D(filters, kernel_size, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+
+    x = layers.add([x, shortcut])
+    x = layers.Activation('swish')(x)
+    return x
+
+
+def encoder(image_shape):
+    inputs = layers.Input(shape=image_shape)
+
+    res = layers.Resizing(image_shape[0]//2, image_shape[1]//2)(inputs)
+
+    x = layers.Conv2D(16, kernel_size=3, strides=2, padding='same')(res)
+    x = residual_block(x, 16)
+
+    x = layers.Conv2D(32, kernel_size=3, strides=2, padding='same')(x)
+    x = residual_block(x, 32)
+
+    x = layers.Conv2D(64, kernel_size=3, strides=2, padding='same')(x)
+    x = residual_block(x, 64)
+
+    x = layers.LayerNormalization(axis=-1)(x)
+    x = layers.Activation('swish')(x)
+
+    outputs = layers.GlobalAveragePooling2D()(x)
+
+    backbone = Model(inputs=inputs, outputs=outputs)
+    backbone.summary()
+
+    return backbone
 
 
 def build(image_shape, signal_shape, num_classes, lnn_units, fin_path, kan_units):
@@ -15,25 +53,10 @@ def build(image_shape, signal_shape, num_classes, lnn_units, fin_path, kan_units
 
     input_img = layers.Input(shape=image_shape)
 
-    res = layers.TimeDistributed(layers.Resizing(int(image_shape[1]/4), int(image_shape[2]/4)))(input_img)
-    x = layers.TimeDistributed(layers.Conv2D(8, kernel_size=(3, 3), padding="same"))(res)
-    x = layers.TimeDistributed(layers.MaxPooling2D(pool_size=(2, 2)))(x)
-    x = layers.TimeDistributed(layers.BatchNormalization())(x)
-    x = layers.TimeDistributed(layers.Conv2D(16, kernel_size=(3, 3), padding="same"))(x)
-    x = layers.TimeDistributed(layers.MaxPooling2D(pool_size=(2, 2)))(x)
-    x = layers.TimeDistributed(layers.BatchNormalization())(x)
-    x = layers.TimeDistributed(layers.Conv2D(32, kernel_size=(3, 3), padding="same"))(x)
-    x = layers.TimeDistributed(layers.MaxPooling2D(pool_size=(2, 2)))(x)
-    x = layers.TimeDistributed(layers.BatchNormalization())(x)
-    x = layers.TimeDistributed(layers.Conv2D(64, kernel_size=(3, 3), padding="same"))(x)
-    x = layers.TimeDistributed(layers.MaxPooling2D(pool_size=(2, 2)))(x)
-    x = layers.TimeDistributed(layers.BatchNormalization())(x)
-    x = layers.TimeDistributed(layers.Conv2D(128, kernel_size=(3, 3), padding="same"))(x)
-    x = layers.TimeDistributed(layers.MaxPooling2D(pool_size=(2, 2)))(x)
-    x = layers.TimeDistributed(layers.BatchNormalization())(x)
+    backbone = encoder(image_shape[1:])
+    time_distributed_encoder = layers.TimeDistributed(backbone)(input_img)
 
-    x = layers.TimeDistributed(layers.GlobalAveragePooling2D())(x)
-    x = layers.Flatten()(x)
+    x = layers.Flatten()(time_distributed_encoder)
     img_output = layers.Dense(lnn_units[1], activation="relu")(x)
 
     """################################# LNN #####################################"""
@@ -43,7 +66,12 @@ def build(image_shape, signal_shape, num_classes, lnn_units, fin_path, kan_units
     wiring = AutoNCP(lnn_units[0], lnn_units[1])
     rnn_cell = LTCCell(wiring)
 
-    lnn = layers.RNN(rnn_cell, return_sequences=True)(input_sig)
+    x = layers.Conv1D(filters=1, kernel_size=10, strides=4, activation='relu')(input_sig)
+    x = layers.Conv1D(filters=1, kernel_size=10, strides=4, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
+
+    lnn = layers.RNN(rnn_cell, return_sequences=True)(x)
+    lnn = layers.BatchNormalization()(lnn)
     lnn_output = layers.GlobalAveragePooling1D()(lnn)
 
     """################################# FIN #####################################"""
@@ -54,14 +82,15 @@ def build(image_shape, signal_shape, num_classes, lnn_units, fin_path, kan_units
     fin_model = Model(fin_inp, fin_out)
 
     x = fin_model(input_sig)
-    x = layers.GlobalAveragePooling1D()(x)
+    x = layers.BatchNormalization()(x)
     fin_output = layers.Dense(lnn_units[1], activation="relu")(x)
 
     """############################### Concat ####################################"""
 
-    contacted = layers.Concatenate()([img_output, lnn_output, fin_output])
+    contacted = layers.Concatenate()([fin_output, lnn_output, img_output])
+    x = layers.Dropout(0.0)(contacted)
 
-    fc = DenseKAN(kan_units[0])(contacted)
+    fc = DenseKAN(kan_units[0])(x)
     fc = DenseKAN(num_classes)(fc)
     output = layers.Softmax()(fc)
 

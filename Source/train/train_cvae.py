@@ -1,6 +1,6 @@
 import torch
 from tqdm import tqdm
-from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 class TrainCVAE:
@@ -42,8 +42,8 @@ class TrainCVAE:
 
             self.opt.zero_grad()
 
-            recon_batch, mu, logvar, y_pred = self.model(x, y_true)
-            loss = self.loss.cvae_loss_function(recon_batch, x, mu, logvar, y_pred, y_true)
+            recon_batch, mu, logvar = self.model(x, y_true)
+            loss = self.loss.cvae_loss_function(recon_batch, x, mu, logvar)
             loss.backward()
 
             self.opt.step()
@@ -83,8 +83,8 @@ class TrainCVAE:
                 for i in range(self.steps_per_val):
                     xv, yv_true = self.val_gen.data_generation(i)
 
-                    recon_batch, mu, logvar, yv_pred = self.model(xv, yv_true)
-                    vloss = self.loss.cvae_loss_function(recon_batch, xv, mu, logvar, yv_pred, yv_true)
+                    recon_batch, mu, logvar = self.model(xv, yv_true)
+                    vloss = self.loss.cvae_loss_function(recon_batch, xv, mu, logvar)
 
                     running_vloss += vloss
 
