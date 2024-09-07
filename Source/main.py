@@ -241,10 +241,10 @@ if __name__ == '__main__':
 
     print("GENERATE DATA: Done")
 
-    print('\n===================================== TRAIN STAGES =========================================\n')
-    if CFG_stages["FIN_model"] is not None:
-        run_stages(CFG_stages)
-    else:
-        pass
-
-    print("TRAIN STAGES: Done")
+    # print('\n===================================== TRAIN STAGES =========================================\n')
+    # if CFG_stages["FIN_model"] is not None:
+    #     run_stages(CFG_stages)
+    # else:
+    #     pass
+    #
+    # print("TRAIN STAGES: Done")

@@ -1,23 +1,15 @@
-import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
-from tensorflow.keras.regularizers import l2
 
 
-def build_fin(input_shape, units=None, drp=0.0):
-    inputs = layers.Input(shape=(input_shape[0]))
+def build_fin(input_shape, units=None):
+    inputs = layers.Input(shape=input_shape)
 
-    x = layers.Dense(units=units[0])(inputs)
-    x = layers.LeakyReLU()(x)
-    x = layers.Dropout(drp)(x)
-    x = layers.Dense(units=units[1])(x)
-    x = layers.LeakyReLU()(x)
-    x = layers.Dropout(drp)(x)
-    x = layers.Dense(units=units[2])(x)
-    x = layers.LeakyReLU()(x)
-    x = layers.Dropout(drp)(x)
+    x = layers.Dense(units=units[0], activation='relu')(inputs)
+    x = layers.Dense(units=units[1], activation='relu')(x)
+    x = layers.Dense(units=units[2], activation='relu')(x)
 
-    outputs = layers.Dense(units=1, activation='linear')(x)
+    outputs = layers.Dense(units=1)(x)
 
     model = Model(inputs=inputs, outputs=outputs)
     print(model.summary())
