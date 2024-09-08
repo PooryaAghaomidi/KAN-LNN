@@ -23,30 +23,15 @@ CFG_FIN = {
 }
 
 CFG_gen = {
-    "CVAE": {
-        "trained": True,
-        "data_path": "dataset/dataset.csv",
-        "signal_length": 256,
-        "label_length": 5,
-        "latent_space": 32,
-        "batch_size": 16,
-        "num_epochs": 50,
-        "learning_rate": 0.001,
-        "info_interval": 1,
-        "optimizer": "adamax",
-    },
-
-    "generate": {
-        "all_generated": True,
-        "data_path": "dataset/dataset.csv",
-        "model_path": "checkpoints/cvae_20240818_152647.pt",
-        "CVAE": True,
-        "CVAE_saved": "dataset/cvae_dataset.csv",
-        "SMOTE": True,
-        "SMOTE_saved": "dataset/smote_dataset.csv",
-        "ADASYN": True,
-        "ADASYN_saved": "dataset/adasyn_dataset.csv",
-    },
+    "all_generated": True,
+    "data_path": "dataset/dataset.csv",
+    "model_path": "checkpoints/cvae_20240818_152647.pt",
+    "CVAE": True,
+    "CVAE_saved": "dataset/cvae_dataset.csv",
+    "SMOTE": True,
+    "SMOTE_saved": "dataset/smote_dataset.csv",
+    "ADASYN": True,
+    "ADASYN_saved": "dataset/adasyn_dataset.csv",
 }
 
 CFG_stages = {

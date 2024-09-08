@@ -6,17 +6,8 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import gc
-import torch
 import pandas as pd
-from dataset.oversampling import smote_oversampling, adasyn_oversampling, cvae_oversampling
-from utils.visualize_cvae import display_generated_samples
-from utils.torch_callback import t_callback
-from train.train_cvae import TrainCVAE
-from model.cvae import CVAE
-from optimizer.torch_opt import torch_adam, torch_adamax, torch_sgd
-from loss.cvae_loss import CVAELoss
-from utils.set_torch import set_torch_device, set_torch_seed
-from dataloader.cvae_dataloader import CVAEDataGenerator
+from dataset.oversampling import smote_oversampling, adasyn_oversampling
 from utils.set_seed import set_seed
 from utils.set_device import set_gpu
 from dataset.preprocessing import preprocess
@@ -35,7 +26,7 @@ from test.test_fin import test_fin
 from test.test_model import test_model
 from dataloader.dataloader import DataGenerator
 from dataloader.findataloader import FINDataGenerator
-from configs.config import CFG_preprocessing, CFG_FIN, CFG_stages, CFG_gen
+from configs.config import CFG_preprocessing, CFG_FIN, CFG_gen
 
 
 def run_preprocessing(configs):
@@ -87,60 +78,11 @@ def run_FIN(configs):
     test_fin(model_name, test_data)
 
 
-def run_train_cvae(configs):
-    device = set_torch_device()
-    generator = set_torch_seed(device=device)
-
-    dataset = pd.read_csv(configs['data_path'])
-    dataset = dataset.drop(['Unnamed: 0'], axis=1)
-    dataset = dataset.sample(frac=1).reset_index(drop=True)
-
-    ln = len(dataset)
-    train_data = dataset.iloc[:int(ln * 0.9), :]
-    val_data = dataset.iloc[int(ln * 0.9):, :]
-
-    steps_per_epoch = len(train_data) // configs['batch_size']
-    steps_per_val = len(val_data) // configs['batch_size']
-
-    train_gen = CVAEDataGenerator(train_data, configs['signal_length'], configs['label_length'], configs['batch_size'],
-                                  device)
-    val_gen = CVAEDataGenerator(val_data, configs['signal_length'], configs['label_length'], configs['batch_size'],
-                                device)
-
-    model = CVAE(configs['signal_length'], configs['latent_space'], configs['label_length']).to(device)
-
-    my_loss = CVAELoss()
-
-    if configs['optimizer'] == 'adam':
-        my_opt = torch_adam(model, configs['learning_rate'])
-    elif configs['optimizer'] == 'adamax':
-        my_opt = torch_adamax(model, configs['learning_rate'])
-    elif configs['optimizer'] == 'sgd':
-        my_opt = torch_sgd(model, configs['learning_rate'])
-    else:
-        raise ValueError("Invalid optimizer!")
-
-    sum_writer, model_name = t_callback()
-    train_class = TrainCVAE(model, train_gen, val_gen, my_opt, my_loss, configs['num_epochs'], configs['batch_size'],
-                            steps_per_epoch, steps_per_val, sum_writer, model_name,
-                            steps_per_epoch // configs['info_interval'])
-    train_class.training()
-
-    model.load_state_dict(torch.load(model_name))
-    display_generated_samples(model, class_labels=[0, 1, 2, 3, 4], latent_size=configs['latent_space'],
-                              num_samples=configs['label_length'], device=device)
-
-
 def run_gen(configs):
     if not configs['SMOTE']:
         smote_oversampling(configs['data_path'], configs['SMOTE_saved'])
     if not configs['ADASYN']:
         adasyn_oversampling(configs['data_path'], configs['ADASYN_saved'])
-    if not configs['CVAE']:
-        device = set_torch_device()
-        model = CVAE(CFG_gen["CVAE"]['signal_length'], CFG_gen["CVAE"]['latent_space'], CFG_gen["CVAE"]['label_length']).to(device)
-        model.load_state_dict(torch.load(configs['model_path']))
-        cvae_oversampling(configs['data_path'], model, device, CFG_gen["CVAE"]['latent_space'], configs['CVAE_saved'])
     else:
         pass
 
@@ -225,17 +167,9 @@ if __name__ == '__main__':
 
     print("TRAIN FIN: Done")
 
-    print('\n=================================== TRAIN GENERATION =======================================\n')
-    if not CFG_gen["CVAE"]["trained"]:
-        run_train_cvae(CFG_gen["CVAE"])
-    else:
-        pass
-
-    print("TRAIN GENERATION: Done")
-
     print('\n==================================== GENERATE DATA =========================================\n')
-    if not CFG_gen["generate"]["all_generated"]:
-        run_gen(CFG_gen["generate"])
+    if not CFG_gen["all_generated"]:
+        run_gen(CFG_gen)
     else:
         pass
 
