@@ -3,7 +3,7 @@
 import tensorflow as tf
 from .cfc_cell import lecun_tanh, CfCCell
 
-from ...ncps.wirings import wirings
+from . import wirings
 from typing import Optional, Union
 import numpy as np
 

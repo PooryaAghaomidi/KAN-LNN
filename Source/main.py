@@ -7,11 +7,13 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import gc
 import pandas as pd
+import matplotlib.pyplot as plt
 from dataset.oversampling import smote_oversampling, adasyn_oversampling
 from utils.set_seed import set_seed
 from utils.set_device import set_gpu
 from dataset.preprocessing import preprocess
 from model.fin import build_fin
+from dataset.sin_data import generate_data
 from model.model import build
 from utils.callbacks import callback
 from loss.huber import huber_loss
@@ -34,22 +36,20 @@ def run_preprocessing(configs):
 
 
 def run_FIN(configs):
-    dataset = pd.read_csv(configs['data_path'])
-    dataset = dataset.sample(frac=1).reset_index(drop=True)
-    dataset = dataset.drop(['Unnamed: 0'], axis=1)
+    data_train, skew_train, kurt_train = generate_data(configs['data_num'], configs['input_shape'][0])
+    data_test, skew_test, kurt_test = generate_data(configs['data_num'] // 10, configs['input_shape'][0])
+    data_val, skew_val, kurt_val = generate_data(configs['data_num'] // 10, configs['input_shape'][0])
 
-    ln = len(dataset)
-    train_data = dataset.iloc[:int(ln * 0.8), :]
-    test_data = dataset.iloc[int(ln * 0.8):int(ln * 0.9), :]
-    val_data = dataset.iloc[int(ln * 0.9):, :]
+    plt.hist(skew_train)
+    plt.show()
 
-    steps_per_epoch = len(train_data) // configs['batch_size']
-    steps_per_val = len(val_data) // configs['batch_size']
+    plt.hist(kurt_train)
+    plt.show()
 
-    train_gen = FINDataGenerator(train_data, configs['input_shape'], configs['batch_size'])
-    val_gen = FINDataGenerator(val_data, configs['input_shape'], configs['batch_size'])
+    steps_per_epoch = len(data_train) // configs['batch_size']
+    steps_per_val = len(data_val) // configs['batch_size']
 
-    model = build_fin(configs["input_shape"], configs["units"])
+    model = build_fin(configs["input_shape"], configs["conv_units"], configs["lnn_units"], configs["fc_units"])
 
     callbacks, model_name = callback('fin', configs["patience"], configs['monitor'], configs['mode'])
 
@@ -72,10 +72,11 @@ def run_FIN(configs):
         raise ValueError("The optimizer is invalid")
 
     train_class = TrainFIN(model, callbacks, my_loss, my_opt, configs['metrics'], configs['num_epochs'],
-                           configs['batch_size'], train_gen, val_gen, steps_per_epoch, steps_per_val)
+                           configs['batch_size'], data_train, skew_train, kurt_train, data_val, skew_val, kurt_val,
+                           steps_per_epoch, steps_per_val)
 
     train_class.train()
-    test_fin(model_name, test_data)
+    test_fin(model_name, data_test, skew_test, kurt_test)
 
 
 def run_gen(configs):

@@ -8,11 +8,13 @@ CFG_preprocessing = {
 
 CFG_FIN = {
     "trained": False,
-    "data_path": "dataset/dataset.csv",
-    "units": [512, 128, 32],
-    "input_shape": (3000,),
+    "data_num": 20000,
+    "input_shape": (3000, 1),
+    "conv_units": [32, 64, 128],
+    "fc_units": [128, 64, 32],
+    "lnn_units": [128, 64],
     "loss": "mse",
-    "batch_size": 8,
+    "batch_size": 4,
     "optimizer": "adam",
     "learning_rate": 0.001,
     "patience": 30,

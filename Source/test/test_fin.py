@@ -8,25 +8,16 @@ from scipy import stats
 from tensorflow.keras.models import load_model
 
 
-def get_kurtosis(data):
-    return stats.kurtosis(data)
-
-
-def test_fin(model_path, test):
+def test_fin(model_path, data_test, skew_test, kurt_test):
     print('\nGetting test results ...\n')
 
     model = load_model(model_path)
 
-    test = test.drop(['3000'], axis=1)
-
     y_pred = []
     y_test = []
-    for sig in tqdm(test.iloc):
-        sig = np.array(sig)
-        sig = (sig - sig.min()) / (sig.max() - sig.min())
-
-        y_pred.append(int(model.predict(sig.reshape((1, 3000)), verbose=0)[0]))
-        y_test.append(get_kurtosis(sig))
+    for sig in tqdm(data_test.iloc):
+        y_pred.append(int(model.predict(np.array(sig).reshape((1, 3000)), verbose=0)[0]))
+        y_test.append([skew_test, kurt_test])
 
     x_axis = np.arange(len(y_test))
     plt.figure(figsize=(12, 4))

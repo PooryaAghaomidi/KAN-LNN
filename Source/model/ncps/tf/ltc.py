@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ... import ncps
+from . import wirings
 from . import LTCCell, MixedMemoryRNN
 import tensorflow as tf
 from typing import Optional, Union
@@ -76,10 +76,10 @@ class LTC(tf.keras.layers.RNN):
         :param kwargs:
         """
 
-        if isinstance(units, ncps.wirings.Wiring):
+        if isinstance(units, wirings.Wiring):
             wiring = units
         else:
-            wiring = ncps.wirings.FullyConnected(units)
+            wiring = wirings.FullyConnected(units)
 
         cell = LTCCell(
             wiring=wiring,

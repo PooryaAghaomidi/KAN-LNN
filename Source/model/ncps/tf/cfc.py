@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ... import ncps
+from . import wirings
 from . import CfCCell, MixedMemoryRNN, WiredCfCCell
 import tensorflow as tf
 from typing import Optional, Union
@@ -22,7 +22,7 @@ from typing import Optional, Union
 class CfC(tf.keras.layers.RNN):
     def __init__(
         self,
-        units: Union[int, ncps.wirings.Wiring],
+        units: Union[int, wirings.Wiring],
         mixed_memory: bool = False,
         mode: str = "default",
         activation: str = "lecun_tanh",
