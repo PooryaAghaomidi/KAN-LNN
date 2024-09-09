@@ -7,33 +7,37 @@ CFG_preprocessing = {
 }
 
 CFG_FIN = {
-    "trained": False,
+    "trained": True,
     "data_num": 20000,
     "input_shape": (3000, 1),
     "conv_units": [32, 64, 128],
-    "fc_units": [128, 64, 32],
+    "fc_units": [64, 32],
     "lnn_units": [128, 64],
     "loss": "mse",
-    "batch_size": 4,
+    "batch_size": 8,
     "optimizer": "adam",
     "learning_rate": 0.001,
     "patience": 30,
     "monitor": "val_loss",
     "mode": "min",
-    "metrics": ["mean_absolute_percentage_error"],
+    "metrics": [],
     "num_epochs": 100,
 }
 
 CFG_gen = {
     "all_generated": True,
     "data_path": "dataset/dataset.csv",
-    "model_path": "checkpoints/cvae_20240818_152647.pt",
-    "CVAE": True,
-    "CVAE_saved": "dataset/cvae_dataset.csv",
     "SMOTE": True,
     "SMOTE_saved": "dataset/smote_dataset.csv",
     "ADASYN": True,
     "ADASYN_saved": "dataset/adasyn_dataset.csv",
+    "N1": False,
+    "N1_saved": "dataset/n1_dataset.csv",
+}
+
+CFG_N1 = {
+    "trained": False,
+    "data_path": "dataset/n1_dataset.csv"
 }
 
 CFG_stages = {

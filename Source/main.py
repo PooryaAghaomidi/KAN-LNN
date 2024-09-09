@@ -9,6 +9,7 @@ import gc
 import pandas as pd
 import matplotlib.pyplot as plt
 from dataset.oversampling import smote_oversampling, adasyn_oversampling
+from dataset.n1_data import n1_dataset
 from utils.set_seed import set_seed
 from utils.set_device import set_gpu
 from dataset.preprocessing import preprocess
@@ -27,8 +28,7 @@ from train.train import TrainModel
 from test.test_fin import test_fin
 from test.test_model import test_model
 from dataloader.dataloader import DataGenerator
-from dataloader.findataloader import FINDataGenerator
-from configs.config import CFG_preprocessing, CFG_FIN, CFG_gen
+from configs.config import CFG_preprocessing, CFG_FIN, CFG_gen, CFG_N1
 
 
 def run_preprocessing(configs):
@@ -84,9 +84,29 @@ def run_gen(configs):
         smote_oversampling(configs['data_path'], configs['SMOTE_saved'])
     if not configs['ADASYN']:
         adasyn_oversampling(configs['data_path'], configs['ADASYN_saved'])
+    if not configs['N1']:
+        n1_dataset(configs['data_path'], configs['N1_saved'], scaling_factor=1.0)
     else:
         pass
 
+def run_n1(configs):
+    data = pd.read_csv(configs['data_path'])
+
+    if 'Unnamed: 0' in data.columns:
+        data = data.drop(columns=['Unnamed: 0'])
+
+    data = data.sample(frac=1).reset_index(drop=True)
+
+    ln = len(data)
+    train = data.iloc[:int(ln * 0.8), :]
+    test = data.iloc[int(ln * 0.8):int(ln * 0.9), :]
+    val = data.iloc[int(ln * 0.9):, :]
+
+    del data
+
+    steps_per_epoch = len(train) // configs['batch_size']
+    steps_per_test = len(test) // configs['batch_size']
+    steps_per_val = len(val) // configs['batch_size']
 
 def run_stages(configs):
     gc.collect()
@@ -175,6 +195,14 @@ if __name__ == '__main__':
         pass
 
     print("GENERATE DATA: Done")
+
+    print('\n======================================= TRAIN N1 ===========================================\n')
+    if not CFG_N1["trained"]:
+        run_n1(CFG_N1)
+    else:
+        pass
+
+    print("TRAIN N1: Done")
 
     # print('\n===================================== TRAIN STAGES =========================================\n')
     # if CFG_stages["FIN_model"] is not None:

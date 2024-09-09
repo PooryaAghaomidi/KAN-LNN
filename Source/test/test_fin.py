@@ -4,7 +4,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from scipy import stats
 from tensorflow.keras.models import load_model
 
 
