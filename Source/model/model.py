@@ -48,33 +48,23 @@ def encoder(image_shape):
     return backbone
 
 
-def build(image_shape, signal_shape, num_classes, lnn_units, fin_path, kan_units):
+def build(image_shape, signal_shape, num_classes, fin_path, base_model, kan_units, common_len):
     """############################### Image ####################################"""
 
     input_img = layers.Input(shape=image_shape)
 
-    backbone = encoder(image_shape[1:])
-    time_distributed_encoder = layers.TimeDistributed(backbone)(input_img)
+    base_model_raw = load_model(base_model)
+    base_inp = base_model_raw.input
+    base_out = base_model_raw.layers[-5].output
+    final_base_model = Model(base_inp, base_out)
 
-    x = layers.Flatten()(time_distributed_encoder)
-    img_output = layers.Dense(lnn_units[1], activation="relu")(x)
+    x = final_base_model(input_img)
 
-    """################################# LNN #####################################"""
-
-    input_sig = layers.Input(shape=signal_shape)
-
-    wiring = AutoNCP(lnn_units[0], lnn_units[1])
-    rnn_cell = LTCCell(wiring)
-
-    x = layers.Conv1D(filters=1, kernel_size=10, strides=4, activation='relu')(input_sig)
-    x = layers.Conv1D(filters=1, kernel_size=10, strides=4, activation='relu')(x)
-    x = layers.BatchNormalization()(x)
-
-    lnn = layers.RNN(rnn_cell, return_sequences=True)(x)
-    lnn = layers.BatchNormalization()(lnn)
-    lnn_output = layers.GlobalAveragePooling1D()(lnn)
+    img_output = layers.Dense(common_len, activation="relu")(x)
 
     """################################# FIN #####################################"""
+
+    input_sig = layers.Input(shape=signal_shape)
 
     fin_model_raw = load_model(fin_path)
     fin_inp = fin_model_raw.input
@@ -83,15 +73,17 @@ def build(image_shape, signal_shape, num_classes, lnn_units, fin_path, kan_units
 
     x = fin_model(input_sig)
     x = layers.BatchNormalization()(x)
-    fin_output = layers.Dense(lnn_units[1], activation="relu")(x)
+    fin_output = layers.Dense(common_len, activation="relu")(x)
 
     """############################### Concat ####################################"""
 
-    contacted = layers.Concatenate()([fin_output, lnn_output, img_output])
+    contacted = layers.Concatenate()([fin_output, img_output])
     x = layers.Dropout(0.0)(contacted)
 
-    fc = DenseKAN(kan_units[0])(x)
-    fc = DenseKAN(num_classes)(fc)
+    for kan_unit in kan_units:
+        x = DenseKAN(kan_unit)(x)
+
+    fc = DenseKAN(num_classes)(x)
     output = layers.Softmax()(fc)
 
     model = Model(inputs=[input_img, input_sig], outputs=output)

@@ -12,3 +12,4 @@ wfdb
 IPython
 imbalanced-learn
 tensorflow-addons==0.17.0
+seaborn==0.13.2

@@ -8,8 +8,11 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import gc
 import pandas as pd
 import matplotlib.pyplot as plt
-from dataset.oversampling import smote_oversampling, adasyn_oversampling
+from dataset.oversampling import smote_oversampling, adasyn_oversampling, smote_tomek_oversampling, augment_signals
 from dataset.n1_data import n1_dataset
+from model.n1 import build_n1
+from test.test_n1 import test_n1
+from dataloader.n1dataloader import N1DataGenerator
 from utils.set_seed import set_seed
 from utils.set_device import set_gpu
 from dataset.preprocessing import preprocess
@@ -20,15 +23,18 @@ from utils.callbacks import callback
 from loss.huber import huber_loss
 from loss.mean_squared_error import mse_loss
 from loss.categorical_crossentropy import cc_loss
+from loss.weighted_binarycrossentropy import custom_weighted_binary_crossentropy
+from loss.binary_crossentropy import bc_loss
 from optimizer.adamax import adamax_opt
 from optimizer.adam import adam_opt
 from optimizer.sgd import sgd_opt
+from optimizer.rmsprop import rmsprop_opt
 from train.train_fin import TrainFIN
 from train.train import TrainModel
 from test.test_fin import test_fin
 from test.test_model import test_model
 from dataloader.dataloader import DataGenerator
-from configs.config import CFG_preprocessing, CFG_FIN, CFG_gen, CFG_N1
+from configs.config import CFG_preprocessing, CFG_FIN, CFG_gen, CFG_N1, CFG_stages
 
 
 def run_preprocessing(configs):
@@ -51,7 +57,7 @@ def run_FIN(configs):
 
     model = build_fin(configs["input_shape"], configs["conv_units"], configs["lnn_units"], configs["fc_units"])
 
-    callbacks, model_name = callback('fin', configs["patience"], configs['monitor'], configs['mode'])
+    callbacks, model_name = callback('fin', configs["patience"], configs['monitor'], configs['mode'], True)
 
     if configs['loss'] == 'mse':
         my_loss = mse_loss()
@@ -76,7 +82,8 @@ def run_FIN(configs):
                            steps_per_epoch, steps_per_val)
 
     train_class.train()
-    test_fin(model_name, data_test, skew_test, kurt_test)
+    model.load_weights(model_name)
+    test_fin(model, data_test, skew_test, kurt_test)
 
 
 def run_gen(configs):
@@ -84,10 +91,15 @@ def run_gen(configs):
         smote_oversampling(configs['data_path'], configs['SMOTE_saved'])
     if not configs['ADASYN']:
         adasyn_oversampling(configs['data_path'], configs['ADASYN_saved'])
+    if not configs['smotetomek']:
+        smote_tomek_oversampling(configs['data_path'], configs['smotetomek_saved'])
+    if not configs['augmented']:
+        augment_signals(configs['data_path'], configs['augmented_saved'], target_size=3000)
     if not configs['N1']:
-        n1_dataset(configs['data_path'], configs['N1_saved'], scaling_factor=1.0)
+        n1_dataset(configs['data_path'], configs['N1_saved'], scaling_factor=0.2)
     else:
         pass
+
 
 def run_n1(configs):
     data = pd.read_csv(configs['data_path'])
@@ -108,27 +120,71 @@ def run_n1(configs):
     steps_per_test = len(test) // configs['batch_size']
     steps_per_val = len(val) // configs['batch_size']
 
+    train_gen = N1DataGenerator(train, configs['image_shape'], configs['signal_shape'], configs['batch_size'],
+                                configs['overlap'])
+    test_gen = N1DataGenerator(test, configs['image_shape'], configs['signal_shape'], configs['batch_size'],
+                               configs['overlap'])
+    val_gen = N1DataGenerator(val, configs['image_shape'], configs['signal_shape'], configs['batch_size'],
+                              configs['overlap'])
+
+    model = build_n1(configs['image_shape'])
+    callbacks, model_name = callback('n1', configs["patience"], configs['monitor'], configs['mode'])
+
+    if configs['loss'] == 'weighted_binary_crossentropy':
+        my_loss = custom_weighted_binary_crossentropy(weight_zero=5.0, weight_one=1.0)
+    elif configs['loss'] == 'binary_crossentropy':
+        my_loss = bc_loss()
+    elif configs['loss'] == 'categorical_crossentropy':
+        my_loss = cc_loss(from_logits=False, label_smoothing=0.0)
+    else:
+        raise ValueError("The loss is invalid")
+
+    if configs['optimizer'] == 'adamax':
+        my_opt = adamax_opt(configs['learning_rate'], clipvalue=0.5)
+    elif configs['optimizer'] == 'adam':
+        my_opt = adam_opt(configs['learning_rate'])
+    elif configs['optimizer'] == 'sgd':
+        my_opt = sgd_opt(configs['learning_rate'])
+    elif configs['optimizer'] == 'rmsprop':
+        my_opt = rmsprop_opt(configs['learning_rate'])
+    else:
+        raise ValueError("The optimizer is invalid")
+
+    train_class = TrainModel(model, callbacks, my_loss, my_opt, configs['metrics'], configs['num_epochs'],
+                             configs['batch_size'], train_gen, val_gen, steps_per_epoch, steps_per_val)
+
+    train_class.train()
+    test_n1(model_name, test_gen, steps_per_test)
+
+
 def run_stages(configs):
     gc.collect()
 
-    if configs['data_type'] == 'normal':
-        data = pd.read_csv(configs['data_path'])
-        data = data.drop(['Unnamed: 0'], axis=1)
-    elif configs['data_type'] == 'smote':
-        data = pd.read_csv(configs['smote_data_path'])
-    elif configs['data_type'] == 'adasyn':
-        data = pd.read_csv(configs['adasyn_data_path'])
-    else:
-        raise ValueError("Invalid data type!")
-
+    data = pd.read_csv(configs['data_path'])
+    data = data.drop(['Unnamed: 0'], axis=1)
     data = data.sample(frac=1).reset_index(drop=True)
 
     ln = len(data)
-    train = data.iloc[:int(ln * 0.8), :]
-    test = data.iloc[int(ln * 0.8):int(ln * 0.9), :]
-    val = data.iloc[int(ln * 0.9):, :]
+    test = data.iloc[int(ln * 0.7):int(ln * 0.85), :]
+    val = data.iloc[int(ln * 0.85):, :]
 
-    del data
+    if configs['data_type'] == 'normal':
+        train = data.iloc[:int(ln * 0.7), :]
+        del data
+    elif configs['data_type'] == 'smote':
+        train = pd.read_csv(configs['smote_data_path'])
+        train = train.sample(frac=1).reset_index(drop=True)
+    elif configs['data_type'] == 'adasyn':
+        train = pd.read_csv(configs['adasyn_data_path'])
+        train = train.sample(frac=1).reset_index(drop=True)
+    elif configs['data_type'] == 'smotetomek':
+        train = pd.read_csv(configs['smotetomek_data_path'])
+        train = train.sample(frac=1).reset_index(drop=True)
+    elif configs['data_type'] == 'augmented':
+        train = pd.read_csv(configs['augmented_data_path'])
+        train = train.sample(frac=1).reset_index(drop=True)
+    else:
+        raise ValueError("Invalid data type!")
 
     steps_per_epoch = len(train) // configs['batch_size']
     steps_per_test = len(test) // configs['batch_size']
@@ -141,8 +197,11 @@ def run_stages(configs):
     val_gen = DataGenerator(val, configs['image_shape'], configs['signal_shape'], configs['batch_size'],
                             configs['cls_num'], configs['overlap'])
 
-    model = build(configs['image_shape'], configs['signal_shape'], configs['cls_num'], configs['lnn_units'],
-                  configs['FIN_model'], configs['kan_units'])
+    fin_model = build_fin(CFG_FIN["input_shape"], CFG_FIN["conv_units"], CFG_FIN["lnn_units"], CFG_FIN["fc_units"])
+    fin_model.load_weights(configs['FIN_model'])
+
+    model = build(configs['image_shape'], configs['signal_shape'], configs['cls_num'], fin_model,
+                  configs['base_model'], configs['kan_units'], configs['common_len'])
     callbacks, model_name = callback('stages', configs["patience"], configs['monitor'], configs['mode'])
 
     if configs['loss'] == 'categorical_crossentropy':
@@ -204,10 +263,10 @@ if __name__ == '__main__':
 
     print("TRAIN N1: Done")
 
-    # print('\n===================================== TRAIN STAGES =========================================\n')
-    # if CFG_stages["FIN_model"] is not None:
-    #     run_stages(CFG_stages)
-    # else:
-    #     pass
-    #
-    # print("TRAIN STAGES: Done")
+    print('\n===================================== TRAIN STAGES =========================================\n')
+    if CFG_stages["FIN_model"] is not None:
+        run_stages(CFG_stages)
+    else:
+        pass
+
+    print("TRAIN STAGES: Done")

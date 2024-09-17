@@ -6,6 +6,8 @@ adasyn_dataset.csv
 resampled_dataset.csv
 smote_dataset.csv
 n1_dataset.csv
+augmented_dataset.csv
+smotetomek_dataset.csv
 *.psd
 
 # Byte-compiled / optimized / DLL files
