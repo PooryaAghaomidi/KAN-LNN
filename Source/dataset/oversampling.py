@@ -112,7 +112,7 @@ def augment_signals(data_path, save_path, target_size=4000):
 
             # Create a new dataframe for the augmented samples
             df_augmented = pd.DataFrame(X_augmented, columns=df.columns[:-1])
-            df_augmented['label'] = label
+            df_augmented['3000'] = label
             df_augmented['synthetic'] = 'Synthetic'
 
             # Append the original and augmented samples
@@ -129,5 +129,6 @@ def augment_signals(data_path, save_path, target_size=4000):
 
     # Save the augmented dataset
     df_augmented_final.to_csv(save_path, index=False)
+    print(df_augmented_final.head())
 
     print(f"Data augmentation using tsaug completed. Saved to {save_path}.")
