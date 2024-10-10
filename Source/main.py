@@ -157,7 +157,7 @@ def run_n1(configs):
     test_n1(model_name, test_gen, steps_per_test)
 
 
-def run_stages(configs):
+def run_stages(configs, strategy):
     gc.collect()
 
     data = pd.read_csv(configs['data_path'])
@@ -197,38 +197,43 @@ def run_stages(configs):
     val_gen = DataGenerator(val, configs['image_shape'], configs['signal_shape'], configs['batch_size'],
                             configs['cls_num'], configs['overlap'])
 
-    fin_model = build_fin(CFG_FIN["input_shape"], CFG_FIN["conv_units"], CFG_FIN["lnn_units"], CFG_FIN["fc_units"])
-    fin_model.load_weights(configs['FIN_model'])
+    with strategy.scope():
+        fin_model = build_fin(CFG_FIN["input_shape"], CFG_FIN["conv_units"], CFG_FIN["lnn_units"], CFG_FIN["fc_units"])
+        fin_model.load_weights(configs['FIN_model'])
 
-    model = build(configs['image_shape'], configs['signal_shape'], configs['cls_num'], fin_model,
-                  configs['base_model'], configs['kan_units'], configs['common_len'])
-    callbacks, model_name = callback('stages', configs["patience"], configs['monitor'], configs['mode'])
+        # from tensorflow.keras.models import load_model
+        # model = load_model('checkpoints/stages_20241002_191908')
+        model = build(configs['image_shape'], configs['signal_shape'], configs['cls_num'], fin_model,
+                      configs['base_model'], configs['kan_units'])
+        callbacks, model_name = callback('stages', configs["patience"], configs['monitor'], configs['mode'])
 
-    if configs['loss'] == 'categorical_crossentropy':
-        my_loss = cc_loss(from_logits=False, label_smoothing=0.0)
-    else:
-        raise ValueError("The loss is invalid")
+        if configs['loss'] == 'categorical_crossentropy':
+            my_loss = cc_loss(from_logits=False, label_smoothing=0.0)
+        else:
+            raise ValueError("The loss is invalid")
 
-    if configs['optimizer'] == 'adamax':
-        my_opt = adamax_opt(configs['learning_rate'], clipvalue=None)
-    elif configs['optimizer'] == 'adam':
-        my_opt = adam_opt(configs['learning_rate'])
-    elif configs['optimizer'] == 'sgd':
-        my_opt = sgd_opt(configs['learning_rate'])
-    else:
-        raise ValueError("The optimizer is invalid")
+        if configs['optimizer'] == 'adamax':
+            my_opt = adamax_opt(configs['learning_rate'], clipvalue=0.5)
+        elif configs['optimizer'] == 'adam':
+            my_opt = adam_opt(configs['learning_rate'])
+        elif configs['optimizer'] == 'sgd':
+            my_opt = sgd_opt(configs['learning_rate'])
+        elif configs['optimizer'] == 'rmsprop':
+            my_opt = rmsprop_opt(configs['learning_rate'])
+        else:
+            raise ValueError("The optimizer is invalid")
 
-    train_class = TrainModel(model, callbacks, my_loss, my_opt, configs['metrics'], configs['num_epochs'],
-                             configs['batch_size'], train_gen, val_gen, steps_per_epoch, steps_per_val)
+        train_class = TrainModel(model, callbacks, my_loss, my_opt, configs['metrics'], configs['num_epochs'],
+                                 configs['batch_size'], train_gen, val_gen, steps_per_epoch, steps_per_val)
 
-    train_class.train()
+        train_class.train()
     test_model(model_name, test_gen, steps_per_test)
 
 
 if __name__ == '__main__':
     print('\n==================================== CONFIGURATIONS ========================================\n')
     set_seed()
-    set_gpu()
+    strategy = set_gpu()
 
     print('\n===================================== PREPROCESSING ========================================\n')
     head_tail = os.path.split(CFG_preprocessing['final_path'])
@@ -255,18 +260,18 @@ if __name__ == '__main__':
 
     print("GENERATE DATA: Done")
 
-    # print('\n======================================= TRAIN N1 ===========================================\n')
-    # if not CFG_N1["trained"]:
-    #     run_n1(CFG_N1)
-    # else:
-    #     pass
-    #
-    # print("TRAIN N1: Done")
-    #
-    # print('\n===================================== TRAIN STAGES =========================================\n')
-    # if CFG_stages["FIN_model"] is not None:
-    #     run_stages(CFG_stages)
-    # else:
-    #     pass
-    #
-    # print("TRAIN STAGES: Done")
+    print('\n======================================= TRAIN N1 ===========================================\n')
+    if not CFG_N1["trained"]:
+        run_n1(CFG_N1)
+    else:
+        pass
+
+    print("TRAIN N1: Done")
+
+    print('\n===================================== TRAIN STAGES =========================================\n')
+    if CFG_stages["FIN_model"] is not None:
+        run_stages(CFG_stages, strategy)
+    else:
+        pass
+
+    print("TRAIN STAGES: Done")

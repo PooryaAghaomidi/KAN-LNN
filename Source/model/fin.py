@@ -31,13 +31,13 @@ def build_fin(input_shape, conv_units, lnn_units, fc_units):
     # Liquid Neural Network
     wiring = AutoNCP(lnn_units[0], lnn_units[1])
     rnn_cell = LTCCell(wiring)
-    x = layers.RNN(rnn_cell, return_sequences=False)(x)
+    x = layers.GRU(lnn_units[1], return_sequences=False)(x)
 
     # Common Dense Network
     x = layers.Dense(fc_units[0], activation='relu')(x)
-    x = layers.Dropout(0.0)(x)
+    x = layers.Dropout(0.2)(x)
     x = layers.Dense(fc_units[1], activation='relu')(x)
-    x = layers.Dropout(0.0)(x)
+    x = layers.Dropout(0.2)(x)
 
     # Split into separate outputs
     skew_branch = layers.Dense(fc_units[2], activation='relu')(x)

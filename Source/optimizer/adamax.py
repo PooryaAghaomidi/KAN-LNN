@@ -4,7 +4,7 @@
 from tensorflow.keras.optimizers import Adamax
 
 
-def adamax_opt(lr, clipvalue=None):
+def adamax_opt(lr, clipvalue=0.5):
     return Adamax(learning_rate=lr,
                   clipvalue=clipvalue,
                   name="adamax")

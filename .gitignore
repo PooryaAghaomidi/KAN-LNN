@@ -9,6 +9,7 @@ n1_dataset.csv
 augmented_dataset.csv
 smotetomek_dataset.csv
 *.psd
+checkpoints/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

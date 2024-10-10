@@ -19,8 +19,8 @@ def test_fin(model, data_test, skew_test, kurt_test):
         y_pred_kurt.append(kurt[0][0])
         y_pred_skew.append(skew[0][0])
 
-        y_test_kurt.append(skew_test.iloc[idx][0])
-        y_test_skew.append(kurt_test.iloc[idx][0])
+        y_test_kurt.append(kurt_test.iloc[idx][0])
+        y_test_skew.append(skew_test.iloc[idx][0])
 
     x_axis = np.arange(len(y_test_kurt))
 
